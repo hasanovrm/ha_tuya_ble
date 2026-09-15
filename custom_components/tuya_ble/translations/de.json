@@ -129,12 +129,12 @@
                 "state": {
                     "chinese": "Chinesisch",
                     "english": "Englisch",
-                    "language_2": "Unbekannt (2)",
+                    "portuguese": "Portugiesisch",
                     "russian": "Russisch",
                     "thai": "Thailändisch",
                     "spanish": "Spanisch",
                     "vietnamese": "Vietnamesisch",
-                    "language_7": "Unbekannt (7)"
+                    "arabic": "Arabisch"
                 }
             },
             "fingerbot_mode": {

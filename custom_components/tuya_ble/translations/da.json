@@ -129,12 +129,12 @@
                 "state": {
                     "chinese": "Kinesisk",
                     "english": "Engelsk",
-                    "language_2": "Ukendt (2)",
+                    "portuguese": "Portugisisk",
                     "russian": "Russisk",
                     "thai": "Thai",
                     "spanish": "Spansk",
                     "vietnamese": "Vietnamesisk",
-                    "language_7": "Ukendt (7)"
+                    "arabic": "Arabisk"
                 }
             },
             "fingerbot_mode": {
