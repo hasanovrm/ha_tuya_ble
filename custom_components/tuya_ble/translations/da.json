@@ -63,6 +63,9 @@
         "binary_sensor": {
             "low_battery": {
                 "name": "Batteri"
+            },
+            "reverse_lock": {
+                "name": "Dobbeltlås"
             }
         },
         "button": {
@@ -113,10 +116,26 @@
         },
         "select": {
             "beep_volume": {
-                "name": "Låsestyrke"
+                "name": "Låsestyrke",
+                "state": {
+                    "mute": "Lydløs",
+                    "low": "Lav",
+                    "normal": "Normal",
+                    "high": "Høj"
+                }
             },
             "language": {
-                "name": "Låsesprog"
+                "name": "Låsesprog",
+                "state": {
+                    "chinese_simplified": "Kinesisk (forenklet)",
+                    "english": "Engelsk",
+                    "japanese": "Japansk",
+                    "german": "Tysk",
+                    "spanish": "Spansk",
+                    "french": "Fransk",
+                    "russian": "Russisk",
+                    "korean": "Koreansk"
+                }
             },
             "fingerbot_mode": {
                 "name": "Tilstand",
@@ -139,7 +158,12 @@
         },
         "sensor": {
             "alarm_lock": {
-                "name": "Alarm"
+                "name": "Alarm",
+                "state": {
+                    "wrong_finger": "Forkert fingeraftryk",
+                    "wrong_password": "Forkert adgangskode",
+                    "low_battery": "Lavt batteri"
+                }
             },
             "battery": {
                 "name": "Batteri"
@@ -208,6 +232,18 @@
             },
             "unlock_password": {
                 "name": "Sidst brugte adgangskode"
+            },
+            "unlock_ble": {
+                "name": "Sidste Bluetooth-oplåsning"
+            },
+            "unlock_dynamic": {
+                "name": "Sidst brugte dynamiske adgangskode"
+            },
+            "unlock_temporary": {
+                "name": "Sidst brugte midlertidige adgangskode"
+            },
+            "unlock_phone_remote": {
+                "name": "Sidste fjernoplåsning"
             }
         },
         "switch": {

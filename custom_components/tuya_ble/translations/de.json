@@ -63,6 +63,9 @@
         "binary_sensor": {
             "low_battery": {
                 "name": "Batterie"
+            },
+            "reverse_lock": {
+                "name": "Doppelverriegelung"
             }
         },
         "button": {
@@ -113,10 +116,26 @@
         },
         "select": {
             "beep_volume": {
-                "name": "Schlossvolumen"
+                "name": "Schlossvolumen",
+                "state": {
+                    "mute": "Stumm",
+                    "low": "Leise",
+                    "normal": "Normal",
+                    "high": "Laut"
+                }
             },
             "language": {
-                "name": "Schlosssprache"
+                "name": "Schlosssprache",
+                "state": {
+                    "chinese_simplified": "Chinesisch (vereinfacht)",
+                    "english": "Englisch",
+                    "japanese": "Japanisch",
+                    "german": "Deutsch",
+                    "spanish": "Spanisch",
+                    "french": "Französisch",
+                    "russian": "Russisch",
+                    "korean": "Koreanisch"
+                }
             },
             "fingerbot_mode": {
                 "name": "Modus",
@@ -139,7 +158,12 @@
         },
         "sensor": {
             "alarm_lock": {
-                "name": "Alarm"
+                "name": "Alarm",
+                "state": {
+                    "wrong_finger": "Falscher Fingerabdruck",
+                    "wrong_password": "Falsches Passwort",
+                    "low_battery": "Niedriger Akkustand"
+                }
             },
             "battery": {
                 "name": "Batterie"
@@ -208,6 +232,18 @@
             },
             "unlock_password": {
                 "name": "Zuletzt verwendetes Passwort"
+            },
+            "unlock_ble": {
+                "name": "Letzte Bluetooth-Entsperrung"
+            },
+            "unlock_dynamic": {
+                "name": "Zuletzt verwendetes dynamisches Passwort"
+            },
+            "unlock_temporary": {
+                "name": "Zuletzt verwendetes temporäres Passwort"
+            },
+            "unlock_phone_remote": {
+                "name": "Letzte Fernentsperrung"
             }
         },
         "switch": {

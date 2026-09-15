@@ -102,6 +102,12 @@ def battery_enum_getter(self: TuyaBLESensor) -> None:
         self._attr_native_value = datapoint.value * 20.0
 
 
+def member_id_getter(self: TuyaBLESensor) -> None:
+    datapoint = self._device.datapoints[self._mapping.dp_id]
+    if datapoint:
+        self._attr_native_value = int(datapoint.value)
+
+
 @dataclass
 class TuyaBLECategorySensorMapping:
     products: dict[str, list[TuyaBLESensorMapping]] | None = None
@@ -170,6 +176,70 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                 ]
                 for key in ["ludzroix", "isk2p555", "0qxp5u7s"]
             },
+            "lmfdx8in": [  # Smart Lock T83 (YSG_T83_NO_NFC)
+                TuyaBLESensorMapping(
+                    dp_id=21,
+                    description=SensorEntityDescription(
+                        key="alarm_lock",
+                        icon="mdi:alarm-light-outline",
+                        device_class=SensorDeviceClass.ENUM,
+                        options=["wrong_finger", "wrong_password", "low_battery"],
+                    ),
+                ),
+                TuyaBLEBatteryMapping(dp_id=8),
+                # DPs 12-62 report the member ID used for the latest unlock
+                TuyaBLESensorMapping(
+                    dp_id=12,
+                    description=SensorEntityDescription(
+                        key="unlock_fingerprint",
+                        icon="mdi:fingerprint",
+                    ),
+                    getter=member_id_getter,
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=13,
+                    description=SensorEntityDescription(
+                        key="unlock_password",
+                        icon="mdi:keyboard-outline",
+                    ),
+                    getter=member_id_getter,
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=19,
+                    description=SensorEntityDescription(
+                        key="unlock_ble",
+                        icon="mdi:bluetooth",
+                    ),
+                    getter=member_id_getter,
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=14,
+                    description=SensorEntityDescription(
+                        key="unlock_dynamic",
+                        icon="mdi:key-chain",
+                        entity_registry_enabled_default=False,
+                    ),
+                    getter=member_id_getter,
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=55,
+                    description=SensorEntityDescription(
+                        key="unlock_temporary",
+                        icon="mdi:key-chain-variant",
+                        entity_registry_enabled_default=False,
+                    ),
+                    getter=member_id_getter,
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=62,
+                    description=SensorEntityDescription(
+                        key="unlock_phone_remote",
+                        icon="mdi:cellphone-key",
+                        entity_registry_enabled_default=False,
+                    ),
+                    getter=member_id_getter,
+                ),
+            ],
         }
     ),
     "jtmspro": TuyaBLECategorySensorMapping(

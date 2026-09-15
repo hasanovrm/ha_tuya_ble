@@ -126,12 +126,34 @@
         }
       },
       "beep_volume": {
-          "name": "Lock Volume"
+          "name": "Lock Volume",
+          "state": {
+            "mute": "Mute",
+            "low": "Low",
+            "normal": "Normal",
+            "high": "High"
+          }
+      },
+      "language": {
+        "name": "Lock Language",
+        "state": {
+          "chinese_simplified": "Chinese (Simplified)",
+          "english": "English",
+          "japanese": "Japanese",
+          "german": "German",
+          "spanish": "Spanish",
+          "french": "French",
+          "russian": "Russian",
+          "korean": "Korean"
+        }
       }
     },
     "binary_sensor": {
       "low_battery": {
         "name": "[%key:component::sensor::entity_component::battery::name%]"
+      },
+      "reverse_lock": {
+        "name": "Double lock"
       }
     },
     "sensor": {
@@ -183,7 +205,12 @@
           "name": "Battery"
       },
       "alarm_lock": {
-          "name": "Alarm"
+          "name": "Alarm",
+          "state": {
+            "wrong_finger": "Wrong fingerprint",
+            "wrong_password": "Wrong password",
+            "low_battery": "Low battery"
+          }
       },
       "wrong_finger": {
           "name": "Wrong Fingerprint"
@@ -205,6 +232,18 @@
         },
         "unlock_password": {
             "name": "Last used Password"
+      },
+      "unlock_ble": {
+        "name": "Last Bluetooth unlock"
+      },
+      "unlock_dynamic": {
+        "name": "Last used dynamic password"
+      },
+      "unlock_temporary": {
+        "name": "Last used temporary password"
+      },
+      "unlock_phone_remote": {
+        "name": "Last remote unlock"
       }
     },
     "switch": {

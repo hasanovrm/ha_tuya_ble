@@ -16,6 +16,7 @@ Local Bluetooth (BLE) support for Tuya devices in Home Assistant. Device credent
 |---|---|---|
 | CO2 Detector | `co2bj` | Sensor (CO2 ppm, CO2 alarm, temperature, humidity, battery), Switch (alarm config) |
 | Smart Lock | `ms` | Sensor (alarm, battery, fingerprint ID), Switch (motor state) |
+| Smart Lock T83 (`YSG_T83_NO_NFC`, product `lmfdx8in`) | `ms` | Lock (local lock/unlock), Sensor (alarm, battery, last unlock by fingerprint / password / Bluetooth), Select (beep volume, language), Binary sensor (double lock) |
 | Raycube K7 Pro+ (Smart Lock Pro) | `jtmspro` | Sensor (alarm, battery, fingerprint, card, password) |
 | Fingerbot / CubeTouch 1s & II | `szjqr` | Switch (on/off, reverse positions, manual control, program), Number (position, hold time), Select (mode), Text (program sequence), Sensor (battery) |
 | Fingerbot Plus | `kg` | Switch (on/off, reverse positions, manual control, program), Number (position, hold time), Select (mode), Text (program sequence), Sensor (battery) |
@@ -183,6 +184,18 @@ The TRV exposes a **Climate** entity with heating mode. Additional configuration
 - **Child lock** — disables physical controls on the device
 - **Water scale protection** — periodic valve exercise to prevent limescale seizure
 - **Programming mode / Programming switch** — enables and activates the device's built-in schedule
+
+---
+
+## Smart Lock T83
+
+The Smart Lock T83 (`YSG_T83_NO_NFC`, product `lmfdx8in`) is controlled entirely over Bluetooth, without the Tuya cloud or a gateway:
+
+- **Lock** sends `manual_lock` (DP 46).
+- **Unlock** registers a random, single-use 8 digit code for member slot 7 through `remote_no_pd_setkey` (DP 60), valid for ±5 minutes, and immediately unlocks with it through `remote_no_dp_key` (DP 61).
+- The lock state follows `lock_motor_state` (DP 47).
+
+If the lock rejects a command, the reason it reports (for example *wrong code* or *outside of the validity period*) is shown as an error in Home Assistant. Enable debug logging for `custom_components.tuya_ble` to see the raw datapoints exchanged with the lock.
 
 ---
 

@@ -333,6 +333,9 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                     name="Smart Lock",
                 ),
             ),
+            "lmfdx8in": TuyaBLEProductInfo(  # device product_id
+                name="Smart Lock T83",
+            ),
         },
     ),
     "jtmspro": TuyaBLECategoryInfo(

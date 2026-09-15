@@ -99,6 +99,35 @@ mapping: dict[str, TuyaBLECategorySelectMapping] = {
                 ]
                 for key in ["ludzroix", "isk2p555"]
             },
+            "lmfdx8in": [  # Smart Lock T83 (YSG_T83_NO_NFC)
+                TuyaBLESelectMapping(
+                    dp_id=31,
+                    description=SelectEntityDescription(
+                        key="beep_volume",
+                        icon="mdi:volume-high",
+                        options=["mute", "low", "normal", "high"],
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+                TuyaBLESelectMapping(
+                    dp_id=28,
+                    description=SelectEntityDescription(
+                        key="language",
+                        icon="mdi:translate",
+                        options=[
+                            "chinese_simplified",
+                            "english",
+                            "japanese",
+                            "german",
+                            "spanish",
+                            "french",
+                            "russian",
+                            "korean",
+                        ],
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+            ],
         }
     ),
     "jtmspro": TuyaBLECategorySelectMapping(
