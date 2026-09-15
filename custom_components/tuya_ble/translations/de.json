@@ -127,14 +127,14 @@
             "language": {
                 "name": "Schlosssprache",
                 "state": {
-                    "chinese_simplified": "Chinesisch (vereinfacht)",
+                    "chinese": "Chinesisch",
                     "english": "Englisch",
-                    "japanese": "Japanisch",
-                    "german": "Deutsch",
-                    "spanish": "Spanisch",
-                    "french": "Französisch",
+                    "language_2": "Unbekannt (2)",
                     "russian": "Russisch",
-                    "korean": "Koreanisch"
+                    "thai": "Thailändisch",
+                    "spanish": "Spanisch",
+                    "vietnamese": "Vietnamesisch",
+                    "language_7": "Unbekannt (7)"
                 }
             },
             "fingerbot_mode": {

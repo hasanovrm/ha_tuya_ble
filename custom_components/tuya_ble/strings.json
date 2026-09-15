@@ -137,14 +137,14 @@
       "language": {
         "name": "Lock Language",
         "state": {
-          "chinese_simplified": "Chinese (Simplified)",
+          "chinese": "Chinese",
           "english": "English",
-          "japanese": "Japanese",
-          "german": "German",
-          "spanish": "Spanish",
-          "french": "French",
+          "language_2": "Unidentified (2)",
           "russian": "Russian",
-          "korean": "Korean"
+          "thai": "Thai",
+          "spanish": "Spanish",
+          "vietnamese": "Vietnamese",
+          "language_7": "Unidentified (7)"
         }
       }
     },

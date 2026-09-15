@@ -114,15 +114,18 @@ mapping: dict[str, TuyaBLECategorySelectMapping] = {
                     description=SelectEntityDescription(
                         key="language",
                         icon="mdi:translate",
+                        # Voice languages in firmware order, identified by ear;
+                        # the labels in the Tuya cloud schema do not match what
+                        # the lock says. Positions 2 and 7 are not identified yet.
                         options=[
-                            "chinese_simplified",
+                            "chinese",
                             "english",
-                            "japanese",
-                            "german",
-                            "spanish",
-                            "french",
+                            "language_2",
                             "russian",
-                            "korean",
+                            "thai",
+                            "spanish",
+                            "vietnamese",
+                            "language_7",
                         ],
                         entity_category=EntityCategory.CONFIG,
                     ),

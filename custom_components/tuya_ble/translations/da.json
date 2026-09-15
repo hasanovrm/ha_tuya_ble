@@ -127,14 +127,14 @@
             "language": {
                 "name": "Låsesprog",
                 "state": {
-                    "chinese_simplified": "Kinesisk (forenklet)",
+                    "chinese": "Kinesisk",
                     "english": "Engelsk",
-                    "japanese": "Japansk",
-                    "german": "Tysk",
-                    "spanish": "Spansk",
-                    "french": "Fransk",
+                    "language_2": "Ukendt (2)",
                     "russian": "Russisk",
-                    "korean": "Koreansk"
+                    "thai": "Thai",
+                    "spanish": "Spansk",
+                    "vietnamese": "Vietnamesisk",
+                    "language_7": "Ukendt (7)"
                 }
             },
             "fingerbot_mode": {
