@@ -1,0 +1,107 @@
+add_password:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock
+  fields:
+    code:
+      required: true
+      example: "123456"
+      selector:
+        text:
+    member_id:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: box
+    admin:
+      default: false
+      selector:
+        boolean:
+    start:
+      selector:
+        datetime:
+    end:
+      selector:
+        datetime:
+    times:
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 254
+          mode: box
+
+delete_password:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock
+  fields:
+    hardware_id:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 254
+          mode: box
+    member_id:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: box
+    admin:
+      default: false
+      selector:
+        boolean:
+
+add_temporary_password:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock
+  fields:
+    code:
+      required: true
+      example: "246810"
+      selector:
+        text:
+    start:
+      required: true
+      selector:
+        datetime:
+    end:
+      required: true
+      selector:
+        datetime:
+    times:
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 254
+          mode: box
+
+delete_temporary_password:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock
+  fields:
+    hardware_id:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 254
+          mode: box
+
+get_unlock_methods:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock

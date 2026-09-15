@@ -197,6 +197,32 @@ The Smart Lock T83 (`YSG_T83_NO_NFC`, product `lmfdx8in`) is controlled entirely
 
 If the lock rejects a command, the reason it reports (for example *wrong code* or *outside of the validity period*) is shown as an error in Home Assistant. Enable debug logging for `custom_components.tuya_ble` to see the raw datapoints exchanged with the lock.
 
+### Managing passwords
+
+The lock entity offers these actions (**Developer tools → Actions**), which also work in automations and scripts:
+
+| Action | What it does |
+|---|---|
+| `tuya_ble.add_password` | Adds a permanent password (6–10 digits), optionally limited to a period or a number of uses. Returns the slot (`hardware_id`) the lock stored it in. |
+| `tuya_ble.delete_password` | Deletes a password by its slot. |
+| `tuya_ble.add_temporary_password` | Adds a password that only works between `start` and `end`. Returns its slot. |
+| `tuya_ble.delete_temporary_password` | Deletes a temporary password by its slot. |
+| `tuya_ble.get_unlock_methods` | Lists the passwords and fingerprints stored in the lock. |
+
+Example:
+
+```yaml
+action: tuya_ble.add_temporary_password
+target:
+  entity_id: lock.smart_lock_t83_4f0968
+data:
+  code: "246810"
+  start: "2026-09-20 10:00:00"
+  end: "2026-09-20 18:00:00"
+```
+
+Passwords added from Home Assistant are stored only in the lock. The Tuya app does not know about them and may remove them when it synchronises the lock.
+
 ---
 
 ## Reporting issues

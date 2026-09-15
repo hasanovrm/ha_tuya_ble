@@ -363,5 +363,91 @@
                 "description": "Gerätedaten aktualisieren. Die MAC-Adresse kann nicht geändert werden."
             }
         }
+    },
+    "services": {
+        "add_password": {
+            "name": "Passwort hinzufügen",
+            "description": "Fügt dem Schloss ein dauerhaftes Passwort hinzu und gibt den Speicherplatz zurück.",
+            "fields": {
+                "code": {
+                    "name": "Code",
+                    "description": "6 bis 10 Ziffern."
+                },
+                "member_id": {
+                    "name": "Mitglieds-ID",
+                    "description": "Schlossmitglied, dem das Passwort gehört (1-100)."
+                },
+                "admin": {
+                    "name": "Administrator",
+                    "description": "Erlaubt dem Passwort, die Schlosseinstellungen zu öffnen."
+                },
+                "start": {
+                    "name": "Gültig ab",
+                    "description": "Standard ist jetzt."
+                },
+                "end": {
+                    "name": "Gültig bis",
+                    "description": "Standard ist kein Enddatum."
+                },
+                "times": {
+                    "name": "Anzahl der Verwendungen",
+                    "description": "0 bedeutet unbegrenzt."
+                }
+            }
+        },
+        "delete_password": {
+            "name": "Passwort löschen",
+            "description": "Löscht ein Passwort aus dem Schloss.",
+            "fields": {
+                "hardware_id": {
+                    "name": "Speicherplatz",
+                    "description": "Speicherplatz, der beim Hinzufügen oder Auflisten des Passworts zurückgegeben wurde."
+                },
+                "member_id": {
+                    "name": "Mitglieds-ID",
+                    "description": "Schlossmitglied, dem das Passwort gehört (1-100)."
+                },
+                "admin": {
+                    "name": "Administrator",
+                    "description": "Ob es ein Administratorpasswort ist."
+                }
+            }
+        },
+        "add_temporary_password": {
+            "name": "Temporäres Passwort hinzufügen",
+            "description": "Fügt ein Passwort hinzu, das nur in einem Zeitraum gilt, und gibt seinen Speicherplatz zurück.",
+            "fields": {
+                "code": {
+                    "name": "Code",
+                    "description": "6 bis 10 Ziffern."
+                },
+                "start": {
+                    "name": "Gültig ab",
+                    "description": "Beginn des Zeitraums."
+                },
+                "end": {
+                    "name": "Gültig bis",
+                    "description": "Ende des Zeitraums."
+                },
+                "times": {
+                    "name": "Anzahl der Verwendungen",
+                    "description": "0 bedeutet unbegrenzt innerhalb des Zeitraums."
+                }
+            }
+        },
+        "delete_temporary_password": {
+            "name": "Temporäres Passwort löschen",
+            "description": "Löscht ein temporäres Passwort aus dem Schloss.",
+            "fields": {
+                "hardware_id": {
+                    "name": "Speicherplatz",
+                    "description": "Speicherplatz, der beim Hinzufügen des temporären Passworts zurückgegeben wurde."
+                }
+            }
+        },
+        "get_unlock_methods": {
+            "name": "Entsperrmethoden auflisten",
+            "description": "Listet die im Schloss gespeicherten Passwörter und Fingerabdrücke auf."
+        }
     }
 }

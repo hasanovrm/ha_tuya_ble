@@ -187,7 +187,7 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                     ),
                 ),
                 TuyaBLEBatteryMapping(dp_id=8),
-                # DPs 12-62 report the member ID used for the latest unlock
+                # DPs 12-62 report the slot (hardware ID) used for the latest unlock
                 TuyaBLESensorMapping(
                     dp_id=12,
                     description=SensorEntityDescription(

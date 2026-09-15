@@ -363,5 +363,91 @@
                 "description": "Opdater enhedsoplysningerne. MAC-adressen kan ikke ændres."
             }
         }
+    },
+    "services": {
+        "add_password": {
+            "name": "Tilføj adgangskode",
+            "description": "Tilføjer en permanent adgangskode til låsen og returnerer den plads, den blev gemt på.",
+            "fields": {
+                "code": {
+                    "name": "Kode",
+                    "description": "6 til 10 cifre."
+                },
+                "member_id": {
+                    "name": "Medlems-ID",
+                    "description": "Låsemedlem, som adgangskoden tilhører (1-100)."
+                },
+                "admin": {
+                    "name": "Administrator",
+                    "description": "Tillader adgangskoden at åbne låsens indstillinger."
+                },
+                "start": {
+                    "name": "Gyldig fra",
+                    "description": "Standard er nu."
+                },
+                "end": {
+                    "name": "Gyldig til",
+                    "description": "Standard er ingen slutdato."
+                },
+                "times": {
+                    "name": "Antal anvendelser",
+                    "description": "0 betyder ubegrænset."
+                }
+            }
+        },
+        "delete_password": {
+            "name": "Slet adgangskode",
+            "description": "Sletter en adgangskode fra låsen.",
+            "fields": {
+                "hardware_id": {
+                    "name": "Plads",
+                    "description": "Plads, der blev returneret, da adgangskoden blev tilføjet eller vist."
+                },
+                "member_id": {
+                    "name": "Medlems-ID",
+                    "description": "Låsemedlem, som adgangskoden tilhører (1-100)."
+                },
+                "admin": {
+                    "name": "Administrator",
+                    "description": "Om det er en administratoradgangskode."
+                }
+            }
+        },
+        "add_temporary_password": {
+            "name": "Tilføj midlertidig adgangskode",
+            "description": "Tilføjer en adgangskode, der kun virker i en periode, og returnerer dens plads.",
+            "fields": {
+                "code": {
+                    "name": "Kode",
+                    "description": "6 til 10 cifre."
+                },
+                "start": {
+                    "name": "Gyldig fra",
+                    "description": "Periodens start."
+                },
+                "end": {
+                    "name": "Gyldig til",
+                    "description": "Periodens slutning."
+                },
+                "times": {
+                    "name": "Antal anvendelser",
+                    "description": "0 betyder ubegrænset i perioden."
+                }
+            }
+        },
+        "delete_temporary_password": {
+            "name": "Slet midlertidig adgangskode",
+            "description": "Sletter en midlertidig adgangskode fra låsen.",
+            "fields": {
+                "hardware_id": {
+                    "name": "Plads",
+                    "description": "Plads, der blev returneret, da den midlertidige adgangskode blev tilføjet."
+                }
+            }
+        },
+        "get_unlock_methods": {
+            "name": "Vis oplåsningsmetoder",
+            "description": "Viser adgangskoder og fingeraftryk, der er gemt i låsen."
+        }
     }
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import secrets
 import time
@@ -10,23 +11,36 @@ from dataclasses import dataclass, field
 from struct import pack
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
 from homeassistant.components.lock import (
     LockEntity,
     LockEntityDescription,
 )
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    HomeAssistant,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .devices import TuyaBLECoordinator, TuyaBLEData, TuyaBLEEntity, TuyaBLEProductInfo
 from .tuya_ble import TuyaBLEDataPointType, TuyaBLEDevice
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import datetime
 
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .tuya_ble import TuyaBLEDataPoint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,8 +67,58 @@ CODE_RESULTS = {
     0x06: "double locked",
 }
 
+# Unlocking method management (Tuya BLE lock DP reference). This lock answers
+# without the 2 byte cloud unique ID from the reference, so commands omit it.
+# unlock_method_create (DP 1): type, stage, admin, member, hardware ID,
+#   validity period (17), times, password length, password
+#   reply: type, stage, admin, member, hardware ID, times, result
+# unlock_method_delete (DP 2): type, stage, admin, member, hardware ID, method
+#   reply: the same fields followed by the result
+# temporary_password_creat (DP 51): type, validity period (17), times,
+#   password length, password; reply: hardware ID, result
+# temporary_password_delete (DP 52): hardware ID; reply: hardware ID, result
+# synch_method (DP 54): method type; replies: stage 0, packet number, entries
+#   of (hardware ID, method type, flags, member) and finally stage 1, count
+METHOD_PASSWORD = 0x01
+METHOD_FINGERPRINT = 0x03
+METHOD_NAMES = {
+    0x01: "password",
+    0x02: "card",
+    0x03: "fingerprint",
+    0x04: "face",
+}
+STAGE_START = 0x00
+STAGE_PROGRESS = 0xFC
+STAGE_FAILED = 0xFD
+STAGE_CANCELED = 0xFE
+DELETE_ONE_METHOD = 0x01
+DELETE_SUCCESS = 0xFF
+DELETE_RESULTS = {
+    0x00: "deletion failed",
+    0x01: "unlocking method does not exist",
+}
+TEMP_PASSWORD_TYPE = 0x00
+TEMP_PASSWORD_RESULTS = {
+    0x01: "failure",
+    0x02: "no free slot",
+    0x03: "repeated password",
+}
+TEMP_DELETE_RESULTS = {
+    0x01: "failure",
+    0x02: "password does not exist",
+}
+SYNC_STAGE_DATA = 0x00
+SYNC_STAGE_DONE = 0x01
+SYNC_ENTRY_SIZE = 4
+# End of the validity period of permanent passwords, kept below 2^31
+PERMANENT_END = 2145916799  # 2037-12-31 23:59:59 UTC
+# Permanent passwords start a day early so a lagging lock clock accepts them
+PERMANENT_START_SKEW = 86400
+
 # Seconds to wait for the lock to answer a raw command
 REPLY_TIMEOUT = 5
+# Seconds to wait for all packets of a stored unlocking methods listing
+SYNC_TIMEOUT = 10
 # Seconds to show locking/unlocking before falling back to the reported state
 PENDING_TIMEOUT = 15
 
@@ -83,6 +147,78 @@ def build_code_unlock_payload(code: str, member_id: int) -> bytes:
     )
 
 
+def build_validity(start: int, end: int) -> bytes:
+    """Build a validity period without recurrence, valid all day."""
+    # start, end, recurrence, month days, weekdays, daily 00:00 - 23:59
+    return pack(">IIB3sBBBBB", start, end, 0, bytes(3), 0, 0, 0, 23, 59)
+
+
+def build_add_password_payload(
+    code: str,
+    member_id: int,
+    hardware_id: int,
+    admin: bool,
+    start: int,
+    end: int,
+    times: int,
+) -> bytes:
+    """Build an unlock_method_create value adding a password."""
+    password = code.encode("ascii")
+    return (
+        bytes([METHOD_PASSWORD, STAGE_START, int(admin), member_id, hardware_id])
+        + build_validity(start, end)
+        + bytes([times, len(password)])
+        + password
+    )
+
+
+def build_delete_method_payload(
+    method: int, member_id: int, hardware_id: int, admin: bool
+) -> bytes:
+    """Build an unlock_method_delete value removing one unlocking method."""
+    return bytes(
+        [DELETE_ONE_METHOD, STAGE_START, int(admin), member_id, hardware_id, method]
+    )
+
+
+def build_add_temporary_password_payload(
+    code: str, start: int, end: int, times: int
+) -> bytes:
+    """Build a temporary_password_creat value."""
+    password = code.encode("ascii")
+    return (
+        bytes([TEMP_PASSWORD_TYPE])
+        + build_validity(start, end)
+        + bytes([times, len(password)])
+        + password
+    )
+
+
+def parse_sync_entries(data: bytes) -> list[dict[str, Any]]:
+    """Parse the unlocking methods listed in a synch_method data packet."""
+    return [
+        {
+            "hardware_id": data[pos],
+            "type": METHOD_NAMES.get(data[pos + 1], data[pos + 1]),
+            "member_id": data[pos + 3],
+            "flags": data[pos + 2],
+        }
+        for pos in range(0, len(data) - SYNC_ENTRY_SIZE + 1, SYNC_ENTRY_SIZE)
+    ]
+
+
+def _first_byte(replies: list[bytes]) -> int | None:
+    """Return the result byte of the first reply, if any."""
+    if replies and replies[0]:
+        return replies[0][0]
+    return None
+
+
+def _timestamp(value: datetime) -> int:
+    """Convert a service datetime (naive means local time) to a UNIX timestamp."""
+    return int(dt_util.as_timestamp(value))
+
+
 @dataclass
 class TuyaBLELockMapping:
     """Mapping for Tuya BLE Lock."""
@@ -107,6 +243,11 @@ class TuyaBLECodeLockMapping:
     set_code_dp_id: int = 60  # remote_no_pd_setkey
     unlock_code_dp_id: int = 61  # remote_no_dp_key
     code_member_id: int = 7  # member slot the one-time code is registered for
+    add_method_dp_id: int = 1  # unlock_method_create
+    delete_method_dp_id: int = 2  # unlock_method_delete
+    add_temp_password_dp_id: int = 51  # temporary_password_creat
+    delete_temp_password_dp_id: int = 52  # temporary_password_delete
+    sync_dp_id: int = 54  # synch_method
     description: LockEntityDescription = field(
         default_factory=lambda: LockEntityDescription(key="lock", name=None)
     )
@@ -141,6 +282,60 @@ category_mapping: dict[str, TuyaBLECategoryLockMapping] = {
         },
     ),
 }
+
+_CODE = vol.All(cv.string, vol.Match(r"^\d{6,10}$"))
+_MEMBER_ID = vol.All(vol.Coerce(int), vol.Range(min=1, max=100))
+_HARDWARE_ID = vol.All(vol.Coerce(int), vol.Range(min=0, max=254))
+_TIMES = vol.All(vol.Coerce(int), vol.Range(min=0, max=254))
+
+SERVICES: list[tuple[str, dict, str, SupportsResponse]] = [
+    (
+        "add_password",
+        {
+            vol.Required("code"): _CODE,
+            vol.Optional("member_id", default=1): _MEMBER_ID,
+            vol.Optional("admin", default=False): cv.boolean,
+            vol.Optional("start"): cv.datetime,
+            vol.Optional("end"): cv.datetime,
+            vol.Optional("times", default=0): _TIMES,
+        },
+        "async_add_password",
+        SupportsResponse.OPTIONAL,
+    ),
+    (
+        "delete_password",
+        {
+            vol.Required("hardware_id"): _HARDWARE_ID,
+            vol.Optional("member_id", default=1): _MEMBER_ID,
+            vol.Optional("admin", default=False): cv.boolean,
+        },
+        "async_delete_password",
+        SupportsResponse.NONE,
+    ),
+    (
+        "add_temporary_password",
+        {
+            vol.Required("code"): _CODE,
+            vol.Required("start"): cv.datetime,
+            vol.Required("end"): cv.datetime,
+            vol.Optional("times", default=0): _TIMES,
+        },
+        "async_add_temporary_password",
+        SupportsResponse.OPTIONAL,
+    ),
+    (
+        "delete_temporary_password",
+        {vol.Required("hardware_id"): _HARDWARE_ID},
+        "async_delete_temporary_password",
+        SupportsResponse.NONE,
+    ),
+    (
+        "get_unlock_methods",
+        {},
+        "async_get_unlock_methods",
+        SupportsResponse.ONLY,
+    ),
+]
 
 
 def get_mapping_by_device(
@@ -260,7 +455,15 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
         # True while locking, False while unlocking, None when idle
         self._pending: bool | None = None
         self._unsub_pending: CALLBACK_TYPE | None = None
-        self._reply_waiters: dict[int, asyncio.Future[int]] = {}
+        # Raw values the lock reports, per datapoint a command waits on
+        self._reply_queues: dict[int, asyncio.Queue[bytes]] = {}
+        # One command exchange with the lock at a time
+        self._command_lock = asyncio.Lock()
+
+    async def async_added_to_hass(self) -> None:
+        """Listen to raw datapoint reports to collect command replies."""
+        await super().async_added_to_hass()
+        self.async_on_remove(self._device.register_callback(self._handle_datapoints))
 
     @property
     def is_locked(self) -> bool | None:
@@ -289,7 +492,8 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
             True,
         )
         try:
-            await datapoint.set_value(True)
+            async with self._command_lock:
+                await datapoint.set_value(True)
         except Exception as err:
             self._set_pending(None)
             raise HomeAssistantError(f"Failed to send lock command: {err}") from err
@@ -300,26 +504,32 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
         code = f"{secrets.randbelow(10**8):08d}"
         member_id = self._mapping.code_member_id
         try:
-            result = await self._send_raw_and_wait_reply(
-                self._mapping.set_code_dp_id,
-                build_set_code_payload(code, member_id, int(time.time())),
-            )
-            if result is None:
-                _LOGGER.debug(
-                    "%s: No reply to one-time code registration, unlocking anyway",
-                    self._device.address,
+            async with self._command_lock:
+                result = _first_byte(
+                    await self._request(
+                        self._mapping.set_code_dp_id,
+                        build_set_code_payload(code, member_id, int(time.time())),
+                    )
                 )
-            elif result != 0:
-                msg = (
-                    "Lock rejected the one-time code: "
-                    f"{CODE_RESULTS.get(result, f'error {result}')}"
-                )
-                raise HomeAssistantError(msg)
+                if result is None:
+                    _LOGGER.debug(
+                        "%s: No reply to one-time code registration, "
+                        "unlocking anyway",
+                        self._device.address,
+                    )
+                elif result != 0:
+                    msg = (
+                        "Lock rejected the one-time code: "
+                        f"{CODE_RESULTS.get(result, f'error {result}')}"
+                    )
+                    raise HomeAssistantError(msg)
 
-            result = await self._send_raw_and_wait_reply(
-                self._mapping.unlock_code_dp_id,
-                build_code_unlock_payload(code, member_id),
-            )
+                result = _first_byte(
+                    await self._request(
+                        self._mapping.unlock_code_dp_id,
+                        build_code_unlock_payload(code, member_id),
+                    )
+                )
             if result is not None and result != 0:
                 msg = f"Unlock failed: {CODE_RESULTS.get(result, f'error {result}')}"
                 raise HomeAssistantError(msg)
@@ -330,10 +540,155 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
             self._set_pending(None)
             raise HomeAssistantError(f"Failed to send unlock command: {err}") from err
 
-    async def _send_raw_and_wait_reply(self, dp_id: int, value: bytes) -> int | None:
-        """Send a raw datapoint and return the result byte the lock replies with."""
-        future: asyncio.Future[int] = self.hass.loop.create_future()
-        self._reply_waiters[dp_id] = future
+    async def async_add_password(
+        self,
+        code: str,
+        member_id: int,
+        admin: bool,
+        times: int,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> ServiceResponse:
+        """Add a permanent password, returning the slot the lock stored it in."""
+        start_ts = (
+            _timestamp(start) if start else int(time.time()) - PERMANENT_START_SKEW
+        )
+        end_ts = _timestamp(end) if end else PERMANENT_END
+        if end_ts <= start_ts:
+            raise ServiceValidationError("The end must be after the start")
+
+        async with self._command_lock:
+            # Ask for a free slot so an existing password can never be replaced,
+            # whether the lock honors the requested slot or picks one itself
+            used = {
+                method["hardware_id"]
+                for method in await self._sync_methods(METHOD_PASSWORD)
+            }
+            hardware_id = next((i for i in range(1, 0xFF) if i not in used), None)
+            if hardware_id is None:
+                raise HomeAssistantError("The lock has no free password slot")
+            replies = await self._request(
+                self._mapping.add_method_dp_id,
+                build_add_password_payload(
+                    code, member_id, hardware_id, admin, start_ts, end_ts, times
+                ),
+                until=lambda reply: len(reply) > 1 and reply[1] != STAGE_PROGRESS,
+            )
+
+        if not replies:
+            raise HomeAssistantError("The lock did not answer the add password request")
+        reply = replies[-1]
+        if (
+            len(reply) < 7
+            or reply[1] in (STAGE_FAILED, STAGE_CANCELED)
+            or reply[6] not in (0x00, 0xFF)
+        ):
+            msg = f"The lock rejected the password (reply {reply.hex(' ')})"
+            raise HomeAssistantError(msg)
+        return {"hardware_id": reply[4], "member_id": reply[3]}
+
+    async def async_delete_password(
+        self, hardware_id: int, member_id: int, admin: bool
+    ) -> None:
+        """Delete a password by the slot it is stored in."""
+        async with self._command_lock:
+            replies = await self._request(
+                self._mapping.delete_method_dp_id,
+                build_delete_method_payload(
+                    METHOD_PASSWORD, member_id, hardware_id, admin
+                ),
+            )
+        if not replies or not replies[0]:
+            raise HomeAssistantError("The lock did not answer the delete request")
+        result = replies[0][-1]
+        if result != DELETE_SUCCESS:
+            msg = (
+                "Deleting the password failed: "
+                f"{DELETE_RESULTS.get(result, f'error {result}')}"
+            )
+            raise HomeAssistantError(msg)
+
+    async def async_add_temporary_password(
+        self, code: str, start: datetime, end: datetime, times: int
+    ) -> ServiceResponse:
+        """Add a password valid between start and end, returning its slot."""
+        start_ts = _timestamp(start)
+        end_ts = _timestamp(end)
+        if end_ts <= start_ts:
+            raise ServiceValidationError("The end must be after the start")
+
+        async with self._command_lock:
+            replies = await self._request(
+                self._mapping.add_temp_password_dp_id,
+                build_add_temporary_password_payload(code, start_ts, end_ts, times),
+            )
+        if not replies or len(replies[0]) < 2:
+            raise HomeAssistantError(
+                "The lock did not answer the add temporary password request"
+            )
+        hardware_id, result = replies[0][0], replies[0][1]
+        if result != 0:
+            msg = (
+                "The lock rejected the temporary password: "
+                f"{TEMP_PASSWORD_RESULTS.get(result, f'error {result}')}"
+            )
+            raise HomeAssistantError(msg)
+        return {"hardware_id": hardware_id}
+
+    async def async_delete_temporary_password(self, hardware_id: int) -> None:
+        """Delete a temporary password by its slot."""
+        async with self._command_lock:
+            replies = await self._request(
+                self._mapping.delete_temp_password_dp_id, bytes([hardware_id])
+            )
+        if not replies or len(replies[0]) < 2:
+            raise HomeAssistantError("The lock did not answer the delete request")
+        result = replies[0][1]
+        if result not in (0x00, 0xFF):
+            msg = (
+                "Deleting the temporary password failed: "
+                f"{TEMP_DELETE_RESULTS.get(result, f'error {result}')}"
+            )
+            raise HomeAssistantError(msg)
+
+    async def async_get_unlock_methods(self) -> ServiceResponse:
+        """List the passwords and fingerprints stored in the lock."""
+        async with self._command_lock:
+            methods = [
+                *await self._sync_methods(METHOD_PASSWORD),
+                *await self._sync_methods(METHOD_FINGERPRINT),
+            ]
+        return {"methods": methods}
+
+    async def _sync_methods(self, method: int) -> list[dict[str, Any]]:
+        """Read the unlocking methods of one type stored in the lock."""
+        replies = await self._request(
+            self._mapping.sync_dp_id,
+            bytes([method]),
+            until=lambda reply: bool(reply) and reply[0] == SYNC_STAGE_DONE,
+            timeout=SYNC_TIMEOUT,
+        )
+        methods: list[dict[str, Any]] = []
+        for reply in replies:
+            if len(reply) > 2 and reply[0] == SYNC_STAGE_DATA:
+                methods.extend(parse_sync_entries(reply[2:]))
+        return methods
+
+    async def _request(
+        self,
+        dp_id: int,
+        value: bytes,
+        until: Callable[[bytes], bool] | None = None,
+        timeout: float = REPLY_TIMEOUT,
+    ) -> list[bytes]:
+        """Send a raw datapoint and collect the values the lock replies with.
+
+        Collecting stops at the first reply for which `until` is true (the
+        first reply when not given) or when the timeout expires.
+        """
+        queue: asyncio.Queue[bytes] = asyncio.Queue()
+        self._reply_queues[dp_id] = queue
+        replies: list[bytes] = []
         try:
             datapoint = self._device.datapoints.get_or_create(
                 dp_id,
@@ -341,12 +696,30 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
                 value,
             )
             await datapoint.set_value(value)
-            async with asyncio.timeout(REPLY_TIMEOUT):
-                return await future
-        except TimeoutError:
-            return None
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(timeout):
+                    while True:
+                        reply = await queue.get()
+                        replies.append(reply)
+                        if until is None or until(reply):
+                            break
         finally:
-            self._reply_waiters.pop(dp_id, None)
+            self._reply_queues.pop(dp_id, None)
+        _LOGGER.debug(
+            "%s: Replies to datapoint %s: %s",
+            self._device.address,
+            dp_id,
+            [reply.hex(" ") for reply in replies],
+        )
+        return replies
+
+    @callback
+    def _handle_datapoints(self, datapoints: list[TuyaBLEDataPoint]) -> None:
+        """Pass raw values reported by the lock to a command waiting on them."""
+        for datapoint in datapoints:
+            queue = self._reply_queues.get(datapoint.id)
+            if queue is not None and isinstance(datapoint.value, bytes):
+                queue.put_nowait(bytes(datapoint.value))
 
     @callback
     def _set_pending(self, locking: bool | None) -> None:
@@ -374,17 +747,6 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        for dp_id, future in self._reply_waiters.items():
-            datapoint = self._device.datapoints[dp_id]
-            if (
-                not future.done()
-                and datapoint
-                and datapoint.changed_by_device
-                and isinstance(datapoint.value, bytes)
-                and datapoint.value
-            ):
-                future.set_result(datapoint.value[0])
-
         if self._pending is not None and self.is_locked is self._pending:
             self._set_pending(None)
         else:
@@ -415,3 +777,10 @@ async def async_setup_entry(
     ]
 
     async_add_entities(entities)
+
+    if any(isinstance(entity, TuyaBLECodeLock) for entity in entities):
+        platform = entity_platform.async_get_current_platform()
+        for name, schema, method, supports_response in SERVICES:
+            platform.async_register_entity_service(
+                name, schema, method, supports_response=supports_response
+            )

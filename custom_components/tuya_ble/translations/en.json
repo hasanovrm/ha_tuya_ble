@@ -360,5 +360,91 @@
                 "description": "Update the device credentials. The MAC address cannot be changed."
             }
         }
+    },
+    "services": {
+        "add_password": {
+            "name": "Add password",
+            "description": "Adds a permanent password to the lock and returns the slot it was stored in.",
+            "fields": {
+                "code": {
+                    "name": "Code",
+                    "description": "6 to 10 digits."
+                },
+                "member_id": {
+                    "name": "Member ID",
+                    "description": "Lock member the password belongs to (1-100)."
+                },
+                "admin": {
+                    "name": "Admin",
+                    "description": "Allows the password to open the lock settings."
+                },
+                "start": {
+                    "name": "Valid from",
+                    "description": "Defaults to now."
+                },
+                "end": {
+                    "name": "Valid until",
+                    "description": "Defaults to no end date."
+                },
+                "times": {
+                    "name": "Number of uses",
+                    "description": "0 means unlimited."
+                }
+            }
+        },
+        "delete_password": {
+            "name": "Delete password",
+            "description": "Deletes a password from the lock.",
+            "fields": {
+                "hardware_id": {
+                    "name": "Slot",
+                    "description": "Slot returned when the password was added or listed."
+                },
+                "member_id": {
+                    "name": "Member ID",
+                    "description": "Lock member the password belongs to (1-100)."
+                },
+                "admin": {
+                    "name": "Admin",
+                    "description": "Whether it is an admin password."
+                }
+            }
+        },
+        "add_temporary_password": {
+            "name": "Add temporary password",
+            "description": "Adds a password that only works within a period and returns its slot.",
+            "fields": {
+                "code": {
+                    "name": "Code",
+                    "description": "6 to 10 digits."
+                },
+                "start": {
+                    "name": "Valid from",
+                    "description": "Start of the period."
+                },
+                "end": {
+                    "name": "Valid until",
+                    "description": "End of the period."
+                },
+                "times": {
+                    "name": "Number of uses",
+                    "description": "0 means unlimited within the period."
+                }
+            }
+        },
+        "delete_temporary_password": {
+            "name": "Delete temporary password",
+            "description": "Deletes a temporary password from the lock.",
+            "fields": {
+                "hardware_id": {
+                    "name": "Slot",
+                    "description": "Slot returned when the temporary password was added."
+                }
+            }
+        },
+        "get_unlock_methods": {
+            "name": "List unlocking methods",
+            "description": "Lists the passwords and fingerprints stored in the lock."
+        }
     }
 }

@@ -12,8 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Smart Lock T83** (`ms` / `lmfdx8in`, model `YSG_T83_NO_NFC`):
   - Lock entity with fully local control. Locking uses `manual_lock` (DP 46); unlocking registers a random single-use code through `remote_no_pd_setkey` (DP 60) and immediately unlocks with it through `remote_no_dp_key` (DP 61), so no key from the Tuya cloud is needed. State comes from `lock_motor_state` (DP 47), and error replies from the lock (wrong code, outside validity period, double locked, …) are reported back to Home Assistant.
-  - Sensors for alarm (DP 21), battery (DP 8) and the member ID of the last unlock by fingerprint (DP 12), password (DP 13) and Bluetooth (DP 19); dynamic password (DP 14), temporary password (DP 55) and remote unlock (DP 62) sensors are disabled by default.
+  - Sensors for alarm (DP 21), battery (DP 8) and the slot used for the last unlock by fingerprint (DP 12), password (DP 13) and Bluetooth (DP 19); dynamic password (DP 14), temporary password (DP 55) and remote unlock (DP 62) sensors are disabled by default.
   - Selects for beep volume (DP 31) and lock language (DP 28), binary sensor for the double lock state (DP 32). The language options follow the order the lock firmware actually uses, which differs from the labels in the Tuya cloud schema.
+  - Actions to add and delete permanent and temporary passwords and to list the passwords and fingerprints stored in the lock: `tuya_ble.add_password`, `tuya_ble.delete_password`, `tuya_ble.add_temporary_password`, `tuya_ble.delete_temporary_password` and `tuya_ble.get_unlock_methods`.
 - State translations for the lock alarm, beep volume and language entities.
 
 ---
