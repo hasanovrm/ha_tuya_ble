@@ -109,6 +109,9 @@
             },
             "ble_unlock_check": {
                 "name": "Unlock"
+            },
+            "auto_lock_delay": {
+                "name": "Auto lock delay"
             }
         },
         "select": {
@@ -291,6 +294,9 @@
             },
             "window_check": {
                 "name": "Window Check"
+            },
+            "auto_lock": {
+                "name": "Auto lock"
             }
         },
         "text": {

@@ -112,6 +112,9 @@
             },
             "language": {
                 "name": "Schlosssprache"
+            },
+            "auto_lock_delay": {
+                "name": "Verzögerung der automatischen Verriegelung"
             }
         },
         "select": {
@@ -294,6 +297,9 @@
             },
             "window_check": {
                 "name": "Fensterkontrolle"
+            },
+            "auto_lock": {
+                "name": "Automatisches Verriegeln"
             }
         },
         "text": {

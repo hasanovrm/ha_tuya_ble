@@ -244,6 +244,26 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
             ],
         },
     ),
+    "ms": TuyaBLECategoryNumberMapping(
+        products={
+            "lmfdx8in": [  # Smart Lock T83 (YSG_T83_NO_NFC)
+                # DP 36 is missing from the cloud schema of this lock, but the
+                # lock controller may still implement it
+                TuyaBLENumberMapping(
+                    dp_id=36,  # auto_locking_timer
+                    description=NumberEntityDescription(
+                        key="auto_lock_delay",
+                        icon="mdi:timer-lock",
+                        native_max_value=120,
+                        native_min_value=1,
+                        native_unit_of_measurement=UnitOfTime.SECONDS,
+                        native_step=1,
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+            ],
+        },
+    ),
     "szjqr": TuyaBLECategoryNumberMapping(
         products={
             **{

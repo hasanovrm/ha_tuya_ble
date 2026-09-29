@@ -223,6 +223,17 @@ data:
 
 Passwords added from Home Assistant are stored only in the lock. The Tuya app does not know about them and may remove them when it synchronises the lock.
 
+### Auto lock (experimental)
+
+The lock relocks itself a few seconds after every unlock, which also ends a remote unlock. Two standard Tuya lock datapoints control that, and neither is in the cloud schema of this lock:
+
+| Entity | Datapoint |
+|---|---|
+| Auto lock | 33 (auto_locking) |
+| Auto lock delay | 36 (auto_locking_timer) |
+
+The radio module passes datapoint writes on to the lock controller without checking them against the cloud schema, so these two entities exist to find out whether the controller implements them. If it ignores them, nothing changes and the entities keep their default values. A reply on datapoint 33 or 36 in the debug log tells the difference.
+
 ---
 
 ## Reporting issues

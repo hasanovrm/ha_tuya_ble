@@ -69,6 +69,9 @@
       }
     },
     "number": {
+      "auto_lock_delay": {
+        "name": "Auto lock delay"
+      },
       "brightness": {
         "name": "[%key:component::light::entity_component::_::state_attributes::brightness::name%]"
       },
@@ -247,6 +250,9 @@
       }
     },
     "switch": {
+      "auto_lock": {
+        "name": "Auto lock"
+      },
       "programming_mode": {
         "name": "Programming Mode" 
       },

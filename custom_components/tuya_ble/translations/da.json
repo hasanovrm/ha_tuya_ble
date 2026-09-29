@@ -112,6 +112,9 @@
             },
             "language": {
                 "name": "Låsesprog"
+            },
+            "auto_lock_delay": {
+                "name": "Forsinkelse for automatisk låsning"
             }
         },
         "select": {
@@ -294,6 +297,9 @@
             },
             "window_check": {
                 "name": "Vindueskontrol"
+            },
+            "auto_lock": {
+                "name": "Automatisk låsning"
             }
         },
         "text": {

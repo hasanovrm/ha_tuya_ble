@@ -169,6 +169,18 @@ mapping: dict[str, TuyaBLECategorySwitchMapping] = {
                 ]
                 for key in ["ludzroix", "isk2p555"]
             },
+            "lmfdx8in": [  # Smart Lock T83 (YSG_T83_NO_NFC)
+                # DP 33 is missing from the cloud schema of this lock, but the
+                # lock controller may still implement it
+                TuyaBLESwitchMapping(
+                    dp_id=33,  # auto_locking
+                    description=SwitchEntityDescription(
+                        key="auto_lock",
+                        icon="mdi:lock-clock",
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+            ],
         }
     ),
     "szjqr": TuyaBLECategorySwitchMapping(
