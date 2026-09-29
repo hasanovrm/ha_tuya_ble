@@ -77,6 +77,9 @@
             },
             "unlock_and_hold": {
                 "name": "Unlock and hold"
+            },
+            "lock_and_auto_lock": {
+                "name": "Lock and auto lock"
             }
         },
         "number": {
@@ -458,6 +461,16 @@
         "unlock_and_hold": {
             "name": "Unlock and hold",
             "description": "Switches auto locking off and unlocks, so the lock stays open. Every step is checked against what the lock reports and retried.",
+            "fields": {
+                "retries": {
+                    "name": "Retries",
+                    "description": "How many times to retry the whole sequence."
+                }
+            }
+        },
+        "lock_and_auto_lock": {
+            "name": "Lock and switch auto locking on",
+            "description": "Switches auto locking back on and locks the lock. Every step is checked against what the lock reports and retried.",
             "fields": {
                 "retries": {
                     "name": "Retries",

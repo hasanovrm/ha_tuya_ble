@@ -119,3 +119,17 @@ unlock_and_hold:
           min: 1
           max: 10
           mode: box
+
+lock_and_auto_lock:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock
+  fields:
+    retries:
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 10
+          mode: box

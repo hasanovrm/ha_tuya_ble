@@ -343,6 +343,16 @@ SERVICES: list[tuple[str, dict, str, SupportsResponse]] = [
         SupportsResponse.OPTIONAL,
     ),
     (
+        "lock_and_auto_lock",
+        {
+            vol.Optional("retries", default=3): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=10)
+            )
+        },
+        "async_lock_and_auto_lock",
+        SupportsResponse.OPTIONAL,
+    ),
+    (
         "get_unlock_methods",
         {},
         "async_get_unlock_methods",
@@ -542,7 +552,7 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
                     )
                     auto_lock_off = reported is False
                     await self._unlock_with_code()
-                    opened = await self._wait_for_unlocked()
+                    opened = await self._wait_for_lock_state(unlocked=True)
             except Exception as err:
                 errors.append(f"attempt {attempt}: {err}")
                 continue
@@ -556,6 +566,39 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
             errors.append(f"attempt {attempt}: the lock did not report itself open")
         self._set_pending(None)
         raise HomeAssistantError("Could not unlock and hold: " + "; ".join(errors))
+
+    async def async_lock_and_auto_lock(self, retries: int) -> ServiceResponse:
+        """Switch auto locking back on and lock, the reverse of unlock and hold."""
+        self._set_pending(True)
+        errors: list[str] = []
+        auto_lock_on = False
+        locked = False
+        for attempt in range(1, retries + 1):
+            try:
+                async with self._command_lock:
+                    reported = await self._write_bool_and_wait(
+                        self._mapping.auto_lock_dp_id, True
+                    )
+                    auto_lock_on = reported is True
+                    await self._write_bool_and_wait(
+                        self._mapping.manual_lock_dp_id, True
+                    )
+                    locked = await self._wait_for_lock_state(unlocked=False)
+            except Exception as err:
+                errors.append(f"attempt {attempt}: {err}")
+                continue
+            if locked:
+                self._set_pending(None)
+                return {
+                    "locked": True,
+                    "attempts": attempt,
+                    "auto_lock_on_confirmed": auto_lock_on,
+                }
+            errors.append(f"attempt {attempt}: the lock did not report itself locked")
+        self._set_pending(None)
+        raise HomeAssistantError(
+            "Could not lock and switch auto locking on: " + "; ".join(errors)
+        )
 
     async def _unlock_with_code(self) -> None:
         """Register a one-time code and unlock with it."""
@@ -609,9 +652,11 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
             self._reply_queues.pop(dp_id, None)
         return None
 
-    async def _wait_for_unlocked(self, timeout: float = OPEN_TIMEOUT) -> bool:
-        """Wait until the lock reports itself unlocked."""
-        if self.is_locked is False:
+    async def _wait_for_lock_state(
+        self, *, unlocked: bool, timeout: float = OPEN_TIMEOUT
+    ) -> bool:
+        """Wait until the lock reports itself unlocked, or locked."""
+        if self.is_locked is (not unlocked):
             return True
         queue: asyncio.Queue[Any] = asyncio.Queue()
         self._reply_queues[self._mapping.state_dp_id] = queue
@@ -619,7 +664,8 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
             with contextlib.suppress(TimeoutError):
                 async with asyncio.timeout(timeout):
                     while True:
-                        if bool(await queue.get()):
+                        # lock_motor_state is true when the lock is open
+                        if bool(await queue.get()) is unlocked:
                             return True
         finally:
             self._reply_queues.pop(self._mapping.state_dp_id, None)

@@ -77,6 +77,9 @@
             },
             "unlock_and_hold": {
                 "name": "Lås op og hold åben"
+            },
+            "lock_and_auto_lock": {
+                "name": "Lås og automatisk låsning"
             }
         },
         "number": {
@@ -461,6 +464,16 @@
         "unlock_and_hold": {
             "name": "Lås op og hold åben",
             "description": "Slår automatisk låsning fra og låser op, så låsen bliver stående åben. Hvert trin kontrolleres mod låsens svar og gentages.",
+            "fields": {
+                "retries": {
+                    "name": "Gentagelser",
+                    "description": "Hvor mange gange hele forløbet skal gentages."
+                }
+            }
+        },
+        "lock_and_auto_lock": {
+            "name": "Lås og slå automatisk låsning til",
+            "description": "Slår automatisk låsning til igen og låser låsen. Hvert trin kontrolleres mod låsens svar og gentages.",
             "fields": {
                 "retries": {
                     "name": "Gentagelser",

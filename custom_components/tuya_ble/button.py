@@ -58,31 +58,40 @@ class TuyaBLEFingerbotModeMapping(TuyaBLEButtonMapping):
 
 
 @dataclass
-class TuyaBLEUnlockAndHoldMapping:
-    """Mapping for a button that unlocks the lock and keeps it open."""
+class TuyaBLELockSequenceMapping:
+    """Mapping for a button that runs a verified sequence on the lock entity."""
 
+    method: str  # coroutine of the lock entity to await
+    description: ButtonEntityDescription
     retries: int = 5
-    description: ButtonEntityDescription = field(
-        default_factory=lambda: ButtonEntityDescription(
-            key="unlock_and_hold",
-            icon="mdi:door-open",
-        )
-    )
 
 
 @dataclass
 class TuyaBLECategoryButtonMapping:
     products: (
-        dict[str, list[TuyaBLEButtonMapping | TuyaBLEUnlockAndHoldMapping]] | None
+        dict[str, list[TuyaBLEButtonMapping | TuyaBLELockSequenceMapping]] | None
     ) = None
-    mapping: list[TuyaBLEButtonMapping | TuyaBLEUnlockAndHoldMapping] | None = None
+    mapping: list[TuyaBLEButtonMapping | TuyaBLELockSequenceMapping] | None = None
 
 
 mapping: dict[str, TuyaBLECategoryButtonMapping] = {
     "ms": TuyaBLECategoryButtonMapping(
         products={
             "lmfdx8in": [  # Smart Lock T83 (YSG_T83_NO_NFC)
-                TuyaBLEUnlockAndHoldMapping(),
+                TuyaBLELockSequenceMapping(
+                    method="async_unlock_and_hold",
+                    description=ButtonEntityDescription(
+                        key="unlock_and_hold",
+                        icon="mdi:door-open",
+                    ),
+                ),
+                TuyaBLELockSequenceMapping(
+                    method="async_lock_and_auto_lock",
+                    description=ButtonEntityDescription(
+                        key="lock_and_auto_lock",
+                        icon="mdi:door-closed-lock",
+                    ),
+                ),
             ],
         },
     ),
@@ -193,8 +202,8 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
         return result
 
 
-class TuyaBLEUnlockAndHoldButton(TuyaBLEEntity, ButtonEntity):
-    """Button that switches auto locking off and unlocks, so the lock stays open."""
+class TuyaBLELockSequenceButton(TuyaBLEEntity, ButtonEntity):
+    """Button that runs one of the verified sequences of the lock entity."""
 
     def __init__(
         self,
@@ -202,7 +211,7 @@ class TuyaBLEUnlockAndHoldButton(TuyaBLEEntity, ButtonEntity):
         coordinator: DataUpdateCoordinator,
         device: TuyaBLEDevice,
         product: TuyaBLEProductInfo,
-        mapping: TuyaBLEUnlockAndHoldMapping,
+        mapping: TuyaBLELockSequenceMapping,
         data: TuyaBLEData,
     ) -> None:
         super().__init__(hass, coordinator, device, product, mapping.description)
@@ -210,10 +219,11 @@ class TuyaBLEUnlockAndHoldButton(TuyaBLEEntity, ButtonEntity):
         self._data = data
 
     async def async_press(self) -> None:
-        """Run the unlock and hold sequence on the lock entity."""
+        """Run the sequence on the lock entity, which verifies and retries it."""
         if self._data.code_lock is None:
             raise HomeAssistantError("The lock entity is not available")
-        await self._data.code_lock.async_unlock_and_hold(retries=self._mapping.retries)
+        sequence = getattr(self._data.code_lock, self._mapping.method)
+        await sequence(retries=self._mapping.retries)
 
 
 async def async_setup_entry(
@@ -224,11 +234,11 @@ async def async_setup_entry(
     """Set up the Tuya BLE sensors."""
     data: TuyaBLEData = hass.data[DOMAIN][entry.entry_id]
     mappings = get_mapping_by_device(data.device)
-    entities: list[TuyaBLEButton | TuyaBLEUnlockAndHoldButton] = []
+    entities: list[TuyaBLEButton | TuyaBLELockSequenceButton] = []
     for mapping in mappings:
-        if isinstance(mapping, TuyaBLEUnlockAndHoldMapping):
+        if isinstance(mapping, TuyaBLELockSequenceMapping):
             entities.append(
-                TuyaBLEUnlockAndHoldButton(
+                TuyaBLELockSequenceButton(
                     hass, data.coordinator, data.device, data.product, mapping, data
                 )
             )

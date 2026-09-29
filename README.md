@@ -209,6 +209,7 @@ The lock entity offers these actions (**Developer tools → Actions**), which al
 | `tuya_ble.delete_temporary_password` | Deletes a temporary password by its slot. |
 | `tuya_ble.get_unlock_methods` | Lists the passwords and fingerprints stored in the lock. |
 | `tuya_ble.unlock_and_hold` | Switches auto locking off and unlocks, so the lock stays open. Checks what the lock reports after every step and retries. |
+| `tuya_ble.lock_and_auto_lock` | The reverse: switches auto locking back on and locks, with the same checks and retries. |
 
 Example:
 
@@ -224,7 +225,7 @@ data:
 
 Passwords added from Home Assistant are stored only in the lock. The Tuya app does not know about them and may remove them when it synchronises the lock.
 
-The same sequence is also available as an **Unlock and hold** button entity, which can be put straight on a dashboard.
+Both sequences are also available as button entities, **Unlock and hold** and **Lock and auto lock**, which can be put straight on a dashboard.
 
 `tuya_ble.unlock_and_hold` is meant for safety automations, for example opening the door on a smoke alarm. Do not make it the only way out of a room: a Bluetooth lock driven by Home Assistant can fail in several ways (no connection, flat batteries, a phone holding the only BLE link), so keep a mechanical way to open the door.
 
