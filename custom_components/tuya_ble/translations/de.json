@@ -454,6 +454,16 @@
         "get_unlock_methods": {
             "name": "Entsperrmethoden auflisten",
             "description": "Listet die im Schloss gespeicherten Passwörter und Fingerabdrücke auf."
+        },
+        "unlock_and_hold": {
+            "name": "Entsperren und offen halten",
+            "description": "Schaltet das automatische Verriegeln ab und entsperrt, damit das Schloss offen bleibt. Jeder Schritt wird mit der Rückmeldung des Schlosses geprüft und wiederholt.",
+            "fields": {
+                "retries": {
+                    "name": "Wiederholungen",
+                    "description": "Wie oft der gesamte Ablauf wiederholt wird."
+                }
+            }
         }
     }
 }

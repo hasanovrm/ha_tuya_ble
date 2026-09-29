@@ -119,6 +119,8 @@ PERMANENT_START_SKEW = 86400
 REPLY_TIMEOUT = 5
 # Seconds to wait for all packets of a stored unlocking methods listing
 SYNC_TIMEOUT = 10
+# Seconds to wait for the lock to report itself open after an unlock
+OPEN_TIMEOUT = 15
 # Seconds to show locking/unlocking before falling back to the reported state
 PENDING_TIMEOUT = 15
 
@@ -248,6 +250,7 @@ class TuyaBLECodeLockMapping:
     add_temp_password_dp_id: int = 51  # temporary_password_creat
     delete_temp_password_dp_id: int = 52  # temporary_password_delete
     sync_dp_id: int = 54  # synch_method
+    auto_lock_dp_id: int = 33  # auto_locking, missing from the cloud schema
     description: LockEntityDescription = field(
         default_factory=lambda: LockEntityDescription(key="lock", name=None)
     )
@@ -328,6 +331,16 @@ SERVICES: list[tuple[str, dict, str, SupportsResponse]] = [
         {vol.Required("hardware_id"): _HARDWARE_ID},
         "async_delete_temporary_password",
         SupportsResponse.NONE,
+    ),
+    (
+        "unlock_and_hold",
+        {
+            vol.Optional("retries", default=3): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=10)
+            )
+        },
+        "async_unlock_and_hold",
+        SupportsResponse.OPTIONAL,
     ),
     (
         "get_unlock_methods",
@@ -501,44 +514,116 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
     async def async_unlock(self, **_kwargs: Any) -> None:
         """Unlock the lock with a freshly registered one-time code."""
         self._set_pending(False)
-        code = f"{secrets.randbelow(10**8):08d}"
-        member_id = self._mapping.code_member_id
         try:
             async with self._command_lock:
-                result = _first_byte(
-                    await self._request(
-                        self._mapping.set_code_dp_id,
-                        build_set_code_payload(code, member_id, int(time.time())),
-                    )
-                )
-                if result is None:
-                    _LOGGER.debug(
-                        "%s: No reply to one-time code registration, "
-                        "unlocking anyway",
-                        self._device.address,
-                    )
-                elif result != 0:
-                    msg = (
-                        "Lock rejected the one-time code: "
-                        f"{CODE_RESULTS.get(result, f'error {result}')}"
-                    )
-                    raise HomeAssistantError(msg)
-
-                result = _first_byte(
-                    await self._request(
-                        self._mapping.unlock_code_dp_id,
-                        build_code_unlock_payload(code, member_id),
-                    )
-                )
-            if result is not None and result != 0:
-                msg = f"Unlock failed: {CODE_RESULTS.get(result, f'error {result}')}"
-                raise HomeAssistantError(msg)
+                await self._unlock_with_code()
         except HomeAssistantError:
             self._set_pending(None)
             raise
         except Exception as err:
             self._set_pending(None)
             raise HomeAssistantError(f"Failed to send unlock command: {err}") from err
+
+    async def async_unlock_and_hold(self, retries: int) -> ServiceResponse:
+        """Switch auto locking off and unlock, so the lock stays open.
+
+        Each step is checked against what the lock reports and the whole
+        sequence is retried, which matters when a safety automation calls it.
+        """
+        self._set_pending(False)
+        errors: list[str] = []
+        auto_lock_off = False
+        opened = False
+        for attempt in range(1, retries + 1):
+            try:
+                async with self._command_lock:
+                    reported = await self._write_bool_and_wait(
+                        self._mapping.auto_lock_dp_id, False
+                    )
+                    auto_lock_off = reported is False
+                    await self._unlock_with_code()
+                    opened = await self._wait_for_unlocked()
+            except Exception as err:
+                errors.append(f"attempt {attempt}: {err}")
+                continue
+            if opened:
+                self._set_pending(None)
+                return {
+                    "opened": True,
+                    "attempts": attempt,
+                    "auto_lock_off_confirmed": auto_lock_off,
+                }
+            errors.append(f"attempt {attempt}: the lock did not report itself open")
+        self._set_pending(None)
+        raise HomeAssistantError("Could not unlock and hold: " + "; ".join(errors))
+
+    async def _unlock_with_code(self) -> None:
+        """Register a one-time code and unlock with it."""
+        code = f"{secrets.randbelow(10**8):08d}"
+        member_id = self._mapping.code_member_id
+        result = _first_byte(
+            await self._request(
+                self._mapping.set_code_dp_id,
+                build_set_code_payload(code, member_id, int(time.time())),
+            )
+        )
+        if result is None:
+            _LOGGER.debug(
+                "%s: No reply to one-time code registration, unlocking anyway",
+                self._device.address,
+            )
+        elif result != 0:
+            msg = (
+                "Lock rejected the one-time code: "
+                f"{CODE_RESULTS.get(result, f'error {result}')}"
+            )
+            raise HomeAssistantError(msg)
+
+        result = _first_byte(
+            await self._request(
+                self._mapping.unlock_code_dp_id,
+                build_code_unlock_payload(code, member_id),
+            )
+        )
+        if result is not None and result != 0:
+            msg = f"Unlock failed: {CODE_RESULTS.get(result, f'error {result}')}"
+            raise HomeAssistantError(msg)
+
+    async def _write_bool_and_wait(
+        self, dp_id: int, value: bool, timeout: float = REPLY_TIMEOUT
+    ) -> bool | None:
+        """Write a boolean datapoint and return what the lock reports back."""
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        self._reply_queues[dp_id] = queue
+        try:
+            datapoint = self._device.datapoints.get_or_create(
+                dp_id,
+                TuyaBLEDataPointType.DT_BOOL,
+                value,
+            )
+            await datapoint.set_value(value)
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(timeout):
+                    return bool(await queue.get())
+        finally:
+            self._reply_queues.pop(dp_id, None)
+        return None
+
+    async def _wait_for_unlocked(self, timeout: float = OPEN_TIMEOUT) -> bool:
+        """Wait until the lock reports itself unlocked."""
+        if self.is_locked is False:
+            return True
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        self._reply_queues[self._mapping.state_dp_id] = queue
+        try:
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(timeout):
+                    while True:
+                        if bool(await queue.get()):
+                            return True
+        finally:
+            self._reply_queues.pop(self._mapping.state_dp_id, None)
+        return False
 
     async def async_add_password(
         self,
@@ -700,6 +785,8 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
                 async with asyncio.timeout(timeout):
                     while True:
                         reply = await queue.get()
+                        if not isinstance(reply, bytes):
+                            continue
                         replies.append(reply)
                         if until is None or until(reply):
                             break
@@ -715,11 +802,12 @@ class TuyaBLECodeLock(TuyaBLEEntity, LockEntity):
 
     @callback
     def _handle_datapoints(self, datapoints: list[TuyaBLEDataPoint]) -> None:
-        """Pass raw values reported by the lock to a command waiting on them."""
+        """Pass values reported by the lock to a command waiting on them."""
         for datapoint in datapoints:
             queue = self._reply_queues.get(datapoint.id)
-            if queue is not None and isinstance(datapoint.value, bytes):
-                queue.put_nowait(bytes(datapoint.value))
+            if queue is not None:
+                value = datapoint.value
+                queue.put_nowait(bytes(value) if isinstance(value, bytes) else value)
 
     @callback
     def _set_pending(self, locking: bool | None) -> None:

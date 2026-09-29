@@ -371,6 +371,16 @@
     }
   },
   "services": {
+    "unlock_and_hold": {
+      "name": "Unlock and hold",
+      "description": "Switches auto locking off and unlocks, so the lock stays open. Every step is checked against what the lock reports and retried.",
+      "fields": {
+        "retries": {
+          "name": "Retries",
+          "description": "How many times to retry the whole sequence."
+        }
+      }
+    },
     "add_password": {
       "name": "Add password",
       "description": "Adds a permanent password to the lock and returns the slot it was stored in.",

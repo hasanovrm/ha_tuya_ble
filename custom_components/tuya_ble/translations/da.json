@@ -454,6 +454,16 @@
         "get_unlock_methods": {
             "name": "Vis oplåsningsmetoder",
             "description": "Viser adgangskoder og fingeraftryk, der er gemt i låsen."
+        },
+        "unlock_and_hold": {
+            "name": "Lås op og hold åben",
+            "description": "Slår automatisk låsning fra og låser op, så låsen bliver stående åben. Hvert trin kontrolleres mod låsens svar og gentages.",
+            "fields": {
+                "retries": {
+                    "name": "Gentagelser",
+                    "description": "Hvor mange gange hele forløbet skal gentages."
+                }
+            }
         }
     }
 }

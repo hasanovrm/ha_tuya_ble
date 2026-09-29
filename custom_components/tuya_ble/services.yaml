@@ -105,3 +105,17 @@ get_unlock_methods:
     entity:
       integration: tuya_ble
       domain: lock
+
+unlock_and_hold:
+  target:
+    entity:
+      integration: tuya_ble
+      domain: lock
+  fields:
+    retries:
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 10
+          mode: box
