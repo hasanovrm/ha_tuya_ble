@@ -74,6 +74,9 @@
             },
             "ble_unlock_check": {
                 "name": "Entsperren"
+            },
+            "unlock_and_hold": {
+                "name": "Entsperren und offen halten"
             }
         },
         "number": {

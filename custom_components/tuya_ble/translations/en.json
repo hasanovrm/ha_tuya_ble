@@ -74,6 +74,9 @@
             },
             "ble_unlock_check": {
                 "name": "Unlock"
+            },
+            "unlock_and_hold": {
+                "name": "Unlock and hold"
             }
         },
         "number": {

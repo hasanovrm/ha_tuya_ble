@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from home_assistant_bluetooth import BluetoothServiceInfoBleak
 
     from .cloud import HASSTuyaBLEDeviceManager
+    from .lock import TuyaBLECodeLock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -309,6 +310,8 @@ class TuyaBLEData:
     product: TuyaBLEProductInfo
     manager: HASSTuyaBLEDeviceManager
     coordinator: TuyaBLECoordinator
+    # Set by the lock platform, used by the unlock and hold button
+    code_lock: TuyaBLECodeLock | None = None
 
 
 @dataclass

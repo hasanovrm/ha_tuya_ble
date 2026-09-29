@@ -224,6 +224,8 @@ data:
 
 Passwords added from Home Assistant are stored only in the lock. The Tuya app does not know about them and may remove them when it synchronises the lock.
 
+The same sequence is also available as an **Unlock and hold** button entity, which can be put straight on a dashboard.
+
 `tuya_ble.unlock_and_hold` is meant for safety automations, for example opening the door on a smoke alarm. Do not make it the only way out of a room: a Bluetooth lock driven by Home Assistant can fail in several ways (no connection, flat batteries, a phone holding the only BLE link), so keep a mechanical way to open the door.
 
 ### Auto lock (experimental)

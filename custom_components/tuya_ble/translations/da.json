@@ -74,6 +74,9 @@
             },
             "ble_unlock_check": {
                 "name": "Lås op"
+            },
+            "unlock_and_hold": {
+                "name": "Lås op og hold åben"
             }
         },
         "number": {

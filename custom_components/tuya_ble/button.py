@@ -11,6 +11,7 @@ from homeassistant.components.button import (
     ButtonEntity,
     ButtonEntityDescription,
 )
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
 from .devices import TuyaBLEData, TuyaBLEEntity, TuyaBLEProductInfo
@@ -57,12 +58,34 @@ class TuyaBLEFingerbotModeMapping(TuyaBLEButtonMapping):
 
 
 @dataclass
+class TuyaBLEUnlockAndHoldMapping:
+    """Mapping for a button that unlocks the lock and keeps it open."""
+
+    retries: int = 5
+    description: ButtonEntityDescription = field(
+        default_factory=lambda: ButtonEntityDescription(
+            key="unlock_and_hold",
+            icon="mdi:door-open",
+        )
+    )
+
+
+@dataclass
 class TuyaBLECategoryButtonMapping:
-    products: dict[str, list[TuyaBLEButtonMapping]] | None = None
-    mapping: list[TuyaBLEButtonMapping] | None = None
+    products: (
+        dict[str, list[TuyaBLEButtonMapping | TuyaBLEUnlockAndHoldMapping]] | None
+    ) = None
+    mapping: list[TuyaBLEButtonMapping | TuyaBLEUnlockAndHoldMapping] | None = None
 
 
 mapping: dict[str, TuyaBLECategoryButtonMapping] = {
+    "ms": TuyaBLECategoryButtonMapping(
+        products={
+            "lmfdx8in": [  # Smart Lock T83 (YSG_T83_NO_NFC)
+                TuyaBLEUnlockAndHoldMapping(),
+            ],
+        },
+    ),
     "szjqr": TuyaBLECategoryButtonMapping(
         products={
             **{
@@ -170,6 +193,29 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
         return result
 
 
+class TuyaBLEUnlockAndHoldButton(TuyaBLEEntity, ButtonEntity):
+    """Button that switches auto locking off and unlocks, so the lock stays open."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: DataUpdateCoordinator,
+        device: TuyaBLEDevice,
+        product: TuyaBLEProductInfo,
+        mapping: TuyaBLEUnlockAndHoldMapping,
+        data: TuyaBLEData,
+    ) -> None:
+        super().__init__(hass, coordinator, device, product, mapping.description)
+        self._mapping = mapping
+        self._data = data
+
+    async def async_press(self) -> None:
+        """Run the unlock and hold sequence on the lock entity."""
+        if self._data.code_lock is None:
+            raise HomeAssistantError("The lock entity is not available")
+        await self._data.code_lock.async_unlock_and_hold(retries=self._mapping.retries)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -178,10 +224,20 @@ async def async_setup_entry(
     """Set up the Tuya BLE sensors."""
     data: TuyaBLEData = hass.data[DOMAIN][entry.entry_id]
     mappings = get_mapping_by_device(data.device)
-    entities = [
-        TuyaBLEButton(hass, data.coordinator, data.device, data.product, mapping)
-        for mapping in mappings
-        if mapping.force_add
-        or data.device.datapoints.has_id(mapping.dp_id, mapping.dp_type)
-    ]
+    entities: list[TuyaBLEButton | TuyaBLEUnlockAndHoldButton] = []
+    for mapping in mappings:
+        if isinstance(mapping, TuyaBLEUnlockAndHoldMapping):
+            entities.append(
+                TuyaBLEUnlockAndHoldButton(
+                    hass, data.coordinator, data.device, data.product, mapping, data
+                )
+            )
+        elif mapping.force_add or data.device.datapoints.has_id(
+            mapping.dp_id, mapping.dp_type
+        ):
+            entities.append(
+                TuyaBLEButton(
+                    hass, data.coordinator, data.device, data.product, mapping
+                )
+            )
     async_add_entities(entities)

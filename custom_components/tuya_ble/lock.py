@@ -866,7 +866,12 @@ async def async_setup_entry(
 
     async_add_entities(entities)
 
-    if any(isinstance(entity, TuyaBLECodeLock) for entity in entities):
+    # The button platform runs the unlock and hold sequence on this entity
+    data.code_lock = next(
+        (entity for entity in entities if isinstance(entity, TuyaBLECodeLock)), None
+    )
+
+    if data.code_lock is not None:
         platform = entity_platform.async_get_current_platform()
         for name, schema, method, supports_response in SERVICES:
             platform.async_register_entity_service(
